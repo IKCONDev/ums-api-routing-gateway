@@ -16,6 +16,17 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
+import com.auth0.jwk.Jwk;
+import com.auth0.jwk.JwkException;
+import com.auth0.jwk.JwkProvider;
+import com.auth0.jwk.UrlJwkProvider;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.InvalidClaimException;
+import com.auth0.jwt.exceptions.SignatureVerificationException;
+import com.auth0.jwt.exceptions.TokenExpiredException;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -62,18 +73,25 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
 		return onError(exchange, "No Authorization Header", HttpStatus.UNAUTHORIZED);	
 	    }
 	   String authorizationHeader =  request.getHeaders().get("Authorization").get(0);
-	   String jwtToken = authorizationHeader.replace("Bearer","");
+	   String jwtToken = authorizationHeader.replace("Bearer ","");
 	   
 	   Mono<Void> error = null;
+	   
+	   /*
 	   if(!isTeamsAccessTokenValid(jwtToken)) {
 		   error = onError(exchange, "Not a valid microsoft's access token", HttpStatus.UNAUTHORIZED);
 	   }
 	   else if(!isJwtValid(jwtToken)) {
 	        error  = onError(exchange, "Not a valid JWT Token", HttpStatus.UNAUTHORIZED);	
 	   }
+	   */
+	   if(!isJwtValid(jwtToken)) {
+	        error  = onError(exchange, "Not a valid JWT Token", HttpStatus.UNAUTHORIZED);	
+	   }
 	   if(error != null) {
 		   return error;
 	   }
+	   //pass execution to next filter in chain
 	   return chain.filter(exchange);
 	    };
     }
@@ -84,55 +102,47 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
 	return response.setComplete();
     }
     
-    
+    /*
     private boolean isTeamsAccessTokenValid(String accessToken) {
-    	
-        try {
-            // Parse the JWT token
-            SignedJWT signedJWT = SignedJWT.parse(accessToken);
+    	    
+            DecodedJWT jwt = JWT.decode(accessToken);
+            System.out.println(jwt.getKeyId());
+            JwkProvider provider = null;
+            Jwk jwk = null;
+            Algorithm algorithm = null;
+
+            try {
             
-            JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
-            System.out.println("Token Claims: " + claims.toString());
+                provider = new UrlJwkProvider(new URL("https://login.microsoftonline.com/common/discovery/keys"));
+                jwk = provider.get(jwt.getKeyId());
+                algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
+                algorithm.verify(jwt);
+                try {
+                    JWTVerifier verifier = JWT.require(algorithm).withAudience("api://07c65ba0-ad88-46c0-bee7-90912bc21e8e")
+                            .build();
+                    DecodedJWT jwt2 = verifier.verify(accessToken);
+                    return true;
+                } catch (TokenExpiredException e) {
+                    System.out.println("Token is expired");
+                    return false;
+                } catch (InvalidClaimException e) {
+                    System.out.println("Invalid Claim for Audience");
+                    return false;
+                }
 
-            // Retrieve the JWKS endpoint URL
-            URL jwksUrl = new URL("https://login.microsoftonline.com/07c65ba0-ad88-46c0-bee7-90912bc21e8e/discovery/keys");
-            JWKSet jwkSet = JWKSet.load(jwksUrl);
-
-            // Get the key that matches the key ID (kid) from the token header
-            JWSHeader jwsHeader = signedJWT.getHeader();
-            JWK jwk = jwkSet.getKeyByKeyId(jwsHeader.getKeyID());
-            
-            String tokenKeyID = jwsHeader.getKeyID();
-            System.out.println("Token Key ID: " + tokenKeyID);
-            String jwkKeyID = jwk.getKeyID();
-            System.out.println("JWK Key ID: " + jwkKeyID);
-
-
-            // Convert the JWK to an RSA public key
-            RSAPublicKey rsaPublicKey = jwk.toRSAKey().toRSAPublicKey();
-            System.out.println("RSA Public Key: " + rsaPublicKey);
-
-
-            // Create a verifier with the RSA public key
-            JWSVerifier jwsVerifier = new RSASSAVerifier(rsaPublicKey);
-            System.out.println("JWS Verifier: " + jwsVerifier);
-
-
-            // Verify the signature
-            if (signedJWT.verify(jwsVerifier)) {
-                System.out.println("Token signature verified");
-                return true;
-            } else {
-            	    System.out.println("Token signature verification failed");
-            	    System.out.println("Token Header: " + signedJWT.getHeader());
-            	    System.out.println("Token Payload: " + signedJWT.getJWTClaimsSet());
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+                return false;
+            } catch (JwkException e) {
+                e.printStackTrace();
+                return false;
+            } catch (SignatureVerificationException e) {
+                System.out.println(e.getMessage());
                 return false;
             }
-        } catch (ParseException | JOSEException | IOException e) {
-            System.out.println("Exception occurred during token verification: " + e.getMessage());
-            return false;
-        }
     }
+    */
+    
 
     private boolean isJwtValid(String jwtToken) {
 	boolean returnValue = true;
