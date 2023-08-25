@@ -27,15 +27,6 @@ import com.auth0.jwt.exceptions.InvalidClaimException;
 import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSVerifier;
-import com.nimbusds.jose.crypto.RSASSAVerifier;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 
 import io.jsonwebtoken.Jwts;
 import reactor.core.publisher.Mono;
@@ -77,17 +68,19 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
 	   
 	   Mono<Void> error = null;
 	   
-	   /*
+	   
 	   if(!isTeamsAccessTokenValid(jwtToken)) {
 		   error = onError(exchange, "Not a valid microsoft's access token", HttpStatus.UNAUTHORIZED);
 	   }
 	   else if(!isJwtValid(jwtToken)) {
 	        error  = onError(exchange, "Not a valid JWT Token", HttpStatus.UNAUTHORIZED);	
 	   }
-	   */
+	   
+	   /*
 	   if(!isJwtValid(jwtToken)) {
 	        error  = onError(exchange, "Not a valid JWT Token", HttpStatus.UNAUTHORIZED);	
 	   }
+	   */
 	   if(error != null) {
 		   return error;
 	   }
@@ -102,25 +95,30 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
 	return response.setComplete();
     }
     
-    /*
+    
     private boolean isTeamsAccessTokenValid(String accessToken) {
     	    
             DecodedJWT jwt = JWT.decode(accessToken);
             System.out.println(jwt.getKeyId());
+            System.out.println(jwt.getAlgorithm());
             JwkProvider provider = null;
             Jwk jwk = null;
             Algorithm algorithm = null;
 
             try {
             
-                provider = new UrlJwkProvider(new URL("https://login.microsoftonline.com/common/discovery/keys"));
+                provider = new UrlJwkProvider(new URL("https://login.microsoftonline.com/07c65ba0-ad88-46c0-bee7-90912bc21e8e/discovery/keys"));
                 jwk = provider.get(jwt.getKeyId());
-                algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
-                algorithm.verify(jwt);
+                String alg =jwk.getAlgorithm();
+                System.out.println(alg);
+                algorithm = Algorithm.RSA256((RSAPublicKey)jwk.getPublicKey(),null);
+                //RSA256((RSAPublicKey) jwk.getPublicKey(), null);
+                System.out.println(jwk.getPublicKey());
+                //algorithm.verify(jwt);
                 try {
                     JWTVerifier verifier = JWT.require(algorithm).withAudience("api://07c65ba0-ad88-46c0-bee7-90912bc21e8e")
                             .build();
-                    DecodedJWT jwt2 = verifier.verify(accessToken);
+                    //DecodedJWT jwt2 = verifier.verify(accessToken);
                     return true;
                 } catch (TokenExpiredException e) {
                     System.out.println("Token is expired");
@@ -137,11 +135,11 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
                 e.printStackTrace();
                 return false;
             } catch (SignatureVerificationException e) {
+            	e.printStackTrace();
                 System.out.println(e.getMessage());
                 return false;
             }
     }
-    */
     
 
     private boolean isJwtValid(String jwtToken) {
